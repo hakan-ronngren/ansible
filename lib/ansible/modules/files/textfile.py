@@ -120,167 +120,131 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
 
-class Reader:
-    next_byte = None
-    stream = None
-    b_crlf = '\r\n' if six.PY2 else b'\r\n'
-    b_cr = '\r' if six.PY2 else b'\r'
-    b_lf = '\n' if six.PY2 else b'\n'
-    b_empty = '' if six.PY2 else b''
-
-    def __init__(self, stream):
-        self.stream = stream
-        self.next_byte = None
-
-    def read_line_bytes(self):
-        """Read bytes from one line.
-
-        Be sure to consume an entire eol sequence if there is one"""
-
-        buf = self.b_empty
-        if self.next_byte:
-            buf += self.next_byte
-            self.next_byte = None
-        while True:
-            b = self.stream.read(1)
-            if b == self.b_lf:
-                # Complete LF line ending
-                buf += b
-                return buf
-            elif b == self.b_cr:
-                # CR, possibly part of CRLF
-                buf += b
-                b = self.stream.read(1)
-                if b == self.b_lf:
-                    # Complete CRLF line ending
-                    buf += b
-                else:
-                    # No, it was just CR, stash the extra byte
-                    next_byte = b
-                # Complete CR or CRLF line ending
-                return buf
-            elif b == self.b_empty:
-                # Reached EOF
-                return buf
-            else:
-                # Another byte to the line
-                buf += b
-
-
-def guess_encoding(path):
+def guess_encoding(b_text):
     """Find a text codec that would decode a given file.
-
-    The clues we are looking for may be right at the end, so we read
-    the entire file.
 
     This function should not be expected to find the correct
     encoding, only one that would not obviously break."""
 
-    with open(path, 'rb') as f:
-        b_text = f.read()
+    b_zero = '\x00' if six.PY2 else b'\x00'
+    zero_ix = b_text.find(b_zero)
+    if zero_ix >= 0:
+        # The presence of a zero byte indicates that we have UTF-16.
+        # (It could be UTF-32 as well but we do not handle that.)
+        if zero_ix % 2 == 0:
+            # Even position => big endian
+            return 'utf_16_be'
+        else:
+            # Odd position => big endian
+            return 'utf_16_le'
+    else:
+        # Iterate over encodings that can fail, in order of decreasing
+        # probability of failure. As ascii will reject any byte over
+        # 0xf7, it goes first. Last in the list should be an encoding
+        # that accepts any byte sequence.
+        for encoding in ('ascii', 'utf_8', 'cp1252', 'latin_1'):
+            try:
+                b_text.decode(encoding)
+                return encoding
+            except UnicodeDecodeError as e:
+                continue
 
-    # Iterate over encodings that can fail, in order of decreasing
-    # probability of failure. As ascii will reject any byte over
-    # 0xf7, it goes first.
-    for encoding in ('ascii', 'utf-8', 'cp1252', 'latin_1'):
-        try:
-            b_text.decode(encoding)
-            return encoding
-        except UnicodeDecodeError as e:
-            continue
-
-    # If we reach this point using some Python version, it means
-    # that this function is not finished.
+    # If we reach this point using some Python version, it means that
+    # the list of encodings to try does not meet the requirements.
     raise Exception("bug: fallback failed for guess_encoding")
+
+
+def is_utf_name(name):
+    return name in ['utf_8', 'utf_16_be', 'utf_16_le']
 
 
 def process_file(module):
     params = module.params
     temp_path = tempfile.mkstemp()[-1]
     changed = False
-    b_out = None
-    b_holdback = None
+
+    b_crlf = '\r\n' if six.PY2 else b'\r\n'
+    b_cr = '\r' if six.PY2 else b'\r'
+    b_lf = '\n' if six.PY2 else b'\n'
+    b_bom8 = '\xef\xbb\xbf' if six.PY2 else b'\xef\xbb\xbf'
+    b_bom16le = '\xff\xfe' if six.PY2 else b'\xff\xfe'
+    b_bom16be = '\xfe\xff' if six.PY2 else b'\xfe\xff'
+    b_empty = '' if six.PY2 else b''
+
+    # Set desired eol byte sequence
+    if params['eol'] == 'CRLF':
+        eol = '\r\n'
+    elif params['eol'] == 'CR':
+        eol = '\r'
+    elif params['eol'] == 'LF':
+        eol = '\n'
+    else:
+        raise Exception('missing support for eol=%s' % params['eol'])
 
     with open(params['path'], 'rb') as f_in:
-        reader = Reader(f_in)
+        b_in = f_in.read()
 
-        # Convenient shortcuts
-        b_crlf = reader.b_crlf
-        b_cr = reader.b_cr
-        b_lf = reader.b_lf
-        b_empty = reader.b_empty
+    # Set input encoding
+    if params['original_encoding'] == 'guess':
+        from_enc = guess_encoding(b_in)
+    else:
+        from_enc = params['original_encoding']
 
-        # Get the desired eol byte sequence
-        if params['eol'] == 'CRLF':
-            b_eol = b_crlf
-        elif params['eol'] == 'CR':
-            b_eol = b_cr
-        elif params['eol'] == 'LF':
-            b_eol = b_lf
-        else:
-            raise Exception('missing support for eol=%s' % params['eol'])
+    # Set output encoding
+    if params['encoding'] == 'as-is':
+        to_enc = from_enc
+    else:
+        to_enc = params['encoding']
 
-        if params['encoding'] != 'as-is':
-            to_enc = params['encoding']
-            if params['original_encoding'] == 'guess':
-                from_enc = guess_encoding(params['path'])
-            else:
-                from_enc = params['original_encoding']
+    # Delete byte order mark but remember if we had one
+    if b_in.startswith(b_bom8):
+        b_out = b_in[len(b_bom8):]
+        have_bom = True
+    elif (b_in.startswith(b_bom16le)
+            or b_in.startswith(b_bom16be)):
+        b_out = b_in[len(b_bom16le):]
+        have_bom = True
+    else:
+        have_bom = False
+        b_out = b_in
 
-        with open(temp_path, 'wb') as f_out:
-            while True:
-                b_in = reader.read_line_bytes()
+    # Decode so that we can treat the data as pure text when converting
+    s_out = b_out.decode(from_enc)
 
-                # Done if no input
-                if len(b_in) == 0:
-                    break
+    # Ensure the required eol type, using LF as intermediate
+    s_out = s_out.replace('\r\n', '\n')
+    s_out = s_out.replace('\r', '\n')
+    s_out = s_out.replace('\n', eol)
 
-                # If this is the first read and we expect Microsoft's
-                # byte order mark to be absent, ensure that.
-                if (params['bom'] == 'absent' and not b_out and len(b_in) >= 3
-                        and (six.PY2 and b_in.startswith('\xef\xbb\xbf') or
-                             (six.PY3 and b_in.startswith(b'\xef\xbb\xbf')))):
-                    b_out = b_in[3:]
-                else:
-                    b_out = b_in
+    # Obey end eol requirement
+    if (params['end_eol'] == 'present'
+            and not s_out.endswith(eol)):
+        s_out += eol
+    elif (params['end_eol'] == 'absent'
+            and s_out.endswith(eol)):
+        s_out = s_out[:-len(eol)]
 
-                # Ensure the required eol type, using LF as intermediate
-                b_out = b_out.replace(b_crlf, b_lf)
-                b_out = b_out.replace(b_cr, b_lf)
-                b_out = b_out.replace(b_lf, b_eol)
+    # Encode with the required encoding
+    errors = params['encoding_errors']
+    if sys.version_info >= (2, 7):
+        b_out = s_out.encode(to_enc, errors=errors)
+    else:
+        b_out = s_out.encode(to_enc, errors)
 
-                # Add eol if required but missing
-                if (params['end_eol'] == 'present'
-                        and not b_out.endswith(b_eol)):
-                    b_out += b_eol
+    # Add bom if required
+    if is_utf_name(to_enc) and have_bom and params['bom'] == 'as-is':
+        if to_enc == 'utf_8':
+            b_out = b_bom8 + b_out
+        elif to_enc == 'utf_16_le':
+            b_out = b_bom16le + b_out
+        elif to_enc == 'utf_16_be':
+            b_out = b_bom16be + b_out
 
-                # If we previously held an eol back to avoid having one
-                # on the last line, now print it only if there is also
-                # some more to print
-                if b_holdback and len(b_out) > 0:
-                    f_out.write(b_holdback)
-                    b_holdback = None
+    if (b_out != b_in):
+        changed = True
 
-                # If we do not want an eol on the last line and we have
-                # one now, hold it back, because this line may be
-                # the last
-                if (params['end_eol'] == 'absent' and b_out.endswith(b_eol)):
-                    b_holdback = b_eol
-                    b_out = b_out[:-len(b_eol)]
-
-                # Transcode if told so
-                if params['encoding'] != 'as-is':
-                    errors = params['encoding_errors']
-                    b_out = b_out.decode(from_enc)
-                    if sys.version_info >= (2, 7):
-                        b_out = b_out.encode(to_enc, errors=errors)
-                    else:
-                        b_out = b_out.encode(to_enc, errors)
-
-                f_out.write(b_out)
-
-                if (b_out != b_in):
-                    changed = True
+    with open(temp_path, 'wb') as f_out:
+        f_out.write(b_out)
 
     shutil.move(temp_path, params['path'])
     return dict(changed=changed)
