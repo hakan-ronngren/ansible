@@ -13,7 +13,7 @@ from ansible.modules.files.textfile import guess_encoding
 # Conversion tests
 
 def test_crlf_eof_to_lf():
-    module = FakeModule(eol='LF')
+    module = FakeModule(eol='lf')
     try:
         result, converted_data = exercise(CRLF_COMPLETE, module)
         assert result == dict(changed=True)
@@ -23,7 +23,7 @@ def test_crlf_eof_to_lf():
 
 
 def test_crlf_noeof_to_lf():
-    module = FakeModule(eol='LF')
+    module = FakeModule(eol='lf')
     try:
         result, converted_data = exercise(CRLF_INCOMPLETE, module)
         assert result == dict(changed=True)
@@ -33,7 +33,7 @@ def test_crlf_noeof_to_lf():
 
 
 def test_crlf_noeof_to_lf_eof():
-    module = FakeModule(eol='LF', end_eol='present')
+    module = FakeModule(eol='lf', end_eol='present')
     try:
         result, converted_data = exercise(CRLF_INCOMPLETE, module)
         assert result == dict(changed=True)
@@ -43,7 +43,7 @@ def test_crlf_noeof_to_lf_eof():
 
 
 def test_lf_eof_to_crlf():
-    module = FakeModule(eol='CRLF')
+    module = FakeModule(eol='crlf')
     try:
         result, converted_data = exercise(LF_COMPLETE, module)
         assert result == dict(changed=True)
@@ -53,7 +53,7 @@ def test_lf_eof_to_crlf():
 
 
 def test_lf_eof_to_crlf_noeof():
-    module = FakeModule(eol='CRLF', end_eol='absent')
+    module = FakeModule(eol='crlf', end_eol='absent')
     try:
         result, converted_data = exercise(LF_COMPLETE, module)
         assert result == dict(changed=True)
@@ -63,7 +63,7 @@ def test_lf_eof_to_crlf_noeof():
 
 
 def test_lf_noeof_to_lf_eof():
-    module = FakeModule(eol='LF', end_eol='present')
+    module = FakeModule(eol='lf', end_eol='present')
     try:
         result, converted_data = exercise(LF_INCOMPLETE, module)
         assert result == dict(changed=True)
@@ -73,7 +73,7 @@ def test_lf_noeof_to_lf_eof():
 
 
 def test_lf_to_cr():
-    module = FakeModule(eol='CR')
+    module = FakeModule(eol='cr')
     try:
         result, converted_data = exercise(LF_COMPLETE, module)
         assert result == dict(changed=True)
@@ -83,7 +83,7 @@ def test_lf_to_cr():
 
 
 def test_remove_windows_utf8_bom():
-    module = FakeModule(eol='LF', end_eol='present', bom='absent')
+    module = FakeModule(eol='lf', end_eol='present', bom='absent')
     try:
         result, converted_data = exercise(CRLF_INCOMPLETE_UTF8_WITH_BOM, module)
         assert result == dict(changed=True)
@@ -93,7 +93,7 @@ def test_remove_windows_utf8_bom():
 
 
 def test_keep_windows_utf8_bom():
-    module = FakeModule(eol='LF', end_eol='present')
+    module = FakeModule(eol='lf', end_eol='present')
     try:
         result, converted_data = exercise(CRLF_INCOMPLETE_UTF8_WITH_BOM, module)
         assert result == dict(changed=True)
@@ -103,7 +103,7 @@ def test_keep_windows_utf8_bom():
 
 
 def test_lf_remains_lf():
-    module = FakeModule(eol='LF')
+    module = FakeModule(eol='lf')
     try:
         result, converted_data = exercise(LF_COMPLETE, module)
         assert result == dict(changed=False)
@@ -113,7 +113,7 @@ def test_lf_remains_lf():
 
 
 def test_empty_file():
-    module = FakeModule(eol='LF')
+    module = FakeModule(eol='lf')
     try:
         result, converted_data = exercise(bytearray([]), module)
         assert result == dict(changed=False)
@@ -130,7 +130,7 @@ def test_file_not_found():
 
 
 def test_as_is_handles_strange_data():
-    module = FakeModule(eol='CRLF', encoding='as-is')
+    module = FakeModule(eol='crlf', encoding='as-is')
     try:
         result, converted_data = exercise(LF_COMPLETE_STRANGE_ENCODING, module)
         assert result == dict(changed=True)
@@ -140,7 +140,7 @@ def test_as_is_handles_strange_data():
 
 
 def test_guessed_to_cp1252():
-    module = FakeModule(eol='LF', encoding='cp1252')
+    module = FakeModule(eol='lf', encoding='cp1252')
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
         assert result == dict(changed=True)
@@ -150,7 +150,7 @@ def test_guessed_to_cp1252():
 
 
 def test_utf_8_to_cp1252():
-    module = FakeModule(eol='LF',
+    module = FakeModule(eol='lf',
                         original_encoding='utf_8',
                         encoding='cp1252')
     try:
@@ -162,7 +162,7 @@ def test_utf_8_to_cp1252():
 
 
 def test_guessed_utf_16_be_to_cp1252():
-    module = FakeModule(eol='LF', encoding='cp1252')
+    module = FakeModule(eol='lf', encoding='cp1252')
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF16_BE_WITH_BOM, module)
         assert result == dict(changed=True)
@@ -172,7 +172,7 @@ def test_guessed_utf_16_be_to_cp1252():
 
 
 def test_guessed_utf_16_le_to_utf_8_keep_bom_when_as_is():
-    module = FakeModule(eol='LF', encoding='utf_8')
+    module = FakeModule(eol='lf', encoding='utf_8')
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF16_LE_WITH_BOM, module)
         assert result == dict(changed=True)
@@ -182,7 +182,7 @@ def test_guessed_utf_16_le_to_utf_8_keep_bom_when_as_is():
 
 
 def test_guessed_utf_16_le_to_utf_8_do_not_add_bom_when_as_is():
-    module = FakeModule(eol='LF', encoding='utf_8')
+    module = FakeModule(eol='lf', encoding='utf_8')
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF16_LE_WITHOUT_BOM, module)
         assert result == dict(changed=True)
@@ -192,7 +192,7 @@ def test_guessed_utf_16_le_to_utf_8_do_not_add_bom_when_as_is():
 
 
 def test_utf_8_to_utf_16_le_keep_bom_when_as_is():
-    module = FakeModule(eol='LF', encoding='utf_16_le')
+    module = FakeModule(eol='lf', encoding='utf_16_le')
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF8_WITH_BOM, module)
         assert result == dict(changed=True)
@@ -202,7 +202,7 @@ def test_utf_8_to_utf_16_le_keep_bom_when_as_is():
 
 
 def test_utf_8_to_utf_16_le_do_not_add_bom_when_as_is():
-    module = FakeModule(eol='LF', encoding='utf_16_le')
+    module = FakeModule(eol='lf', encoding='utf_16_le')
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
         assert result == dict(changed=True)
@@ -212,7 +212,7 @@ def test_utf_8_to_utf_16_le_do_not_add_bom_when_as_is():
 
 
 def test_utf_8_to_ascii_replaced():
-    module = FakeModule(eol='LF',
+    module = FakeModule(eol='lf',
                         original_encoding='utf_8',
                         encoding='ascii',
                         encoding_errors='replace')
@@ -225,7 +225,7 @@ def test_utf_8_to_ascii_replaced():
 
 
 def test_utf_8_to_ascii_ignored():
-    module = FakeModule(eol='LF',
+    module = FakeModule(eol='lf',
                         original_encoding='utf_8',
                         encoding='ascii',
                         encoding_errors='ignore')
@@ -238,7 +238,7 @@ def test_utf_8_to_ascii_ignored():
 
 
 def test_cp1252_to_ascii_strict_fails():
-    module = FakeModule(eol='LF', encoding='ascii')
+    module = FakeModule(eol='lf', encoding='ascii')
     with pytest.raises(UnicodeEncodeError):
         try:
             exercise(LF_COMPLETE_CP1252, module)
@@ -247,7 +247,7 @@ def test_cp1252_to_ascii_strict_fails():
 
 
 def test_cp1252_to_utf_8():
-    module = FakeModule(eol='LF', original_encoding='cp1252', encoding='utf_8')
+    module = FakeModule(eol='lf', original_encoding='cp1252', encoding='utf_8')
     try:
         result, converted_data = exercise(LF_COMPLETE_CP1252, module)
         assert result == dict(changed=True)
@@ -454,7 +454,7 @@ class FakeModule():
 
     def __init__(self, **kwargs):
         self.params['path'] = tempfile.mkstemp()[-1]
-        self.params['eol'] = 'LF'
+        self.params['eol'] = 'lf'
         self.params['end_eol'] = 'as-is'
         self.params['bom'] = 'as-is'
         self.params['encoding'] = 'as-is'
