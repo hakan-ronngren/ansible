@@ -1,2 +1,1 @@
-* Validate encoding names, only left-column values
 * Handle UTF-16 with the endianness of the platform
