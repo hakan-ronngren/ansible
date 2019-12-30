@@ -161,6 +161,56 @@ def test_utf_8_to_cp1252():
         cleanup(module)
 
 
+def test_guessed_utf_16_be_to_cp1252():
+    module = FakeModule(eol='LF', encoding='cp1252')
+    try:
+        result, converted_data = exercise(LF_COMPLETE_UTF16_BE_WITH_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPLETE_CP1252
+    finally:
+        cleanup(module)
+
+
+def test_guessed_utf_16_le_to_utf_8_keep_bom_when_as_is():
+    module = FakeModule(eol='LF', encoding='utf_8')
+    try:
+        result, converted_data = exercise(LF_COMPLETE_UTF16_LE_WITH_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPLETE_UTF8_WITH_BOM
+    finally:
+        cleanup(module)
+
+
+def test_guessed_utf_16_le_to_utf_8_do_not_add_bom_when_as_is():
+    module = FakeModule(eol='LF', encoding='utf_8')
+    try:
+        result, converted_data = exercise(LF_COMPLETE_UTF16_LE_WITHOUT_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPLETE_UTF8_WITHOUT_BOM
+    finally:
+        cleanup(module)
+
+
+def test_utf_8_to_utf_16_le_keep_bom_when_as_is():
+    module = FakeModule(eol='LF', encoding='utf_16_le')
+    try:
+        result, converted_data = exercise(LF_COMPLETE_UTF8_WITH_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPLETE_UTF16_LE_WITH_BOM
+    finally:
+        cleanup(module)
+
+
+def test_utf_8_to_utf_16_le_do_not_add_bom_when_as_is():
+    module = FakeModule(eol='LF', encoding='utf_16_le')
+    try:
+        result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPLETE_UTF16_LE_WITHOUT_BOM
+    finally:
+        cleanup(module)
+
+
 def test_utf_8_to_ascii_replaced():
     module = FakeModule(eol='LF',
                         original_encoding='utf_8',
@@ -209,50 +259,31 @@ def test_cp1252_to_utf_8():
 # Tests for the ability to guess encoding
 
 def test_guess_ascii():
-    path = tempfile.mkstemp()[-1]
-    try:
-        with open(path, 'wb') as f:
-            f.write(LF_COMPLETE)
-        result = guess_encoding(path)
-        assert result == 'ascii'
-    finally:
-        os.remove(path)
+    result = guess_encoding(LF_COMPLETE)
+    assert result == 'ascii'
 
 
 def test_guess_utf_8():
-    path = tempfile.mkstemp()[-1]
-    try:
-        with open(path, 'wb') as f:
-            f.write(LF_COMPLETE_UTF8_WITHOUT_BOM)
-        result = guess_encoding(path)
-        assert result == 'utf-8'
-    finally:
-        os.remove(path)
+    result = guess_encoding(LF_COMPLETE_UTF8_WITHOUT_BOM)
+    assert result == 'utf_8'
+
+
+def test_guess_utf_16_le():
+    result = guess_encoding(LF_COMPLETE_UTF16_LE_WITH_BOM)
+    assert result == 'utf_16_le'
 
 
 def test_guess_cp_1252():
-    path = tempfile.mkstemp()[-1]
-    try:
-        with open(path, 'wb') as f:
-            f.write(LF_COMPLETE_CP1252)
-        result = guess_encoding(path)
-        assert result == 'cp1252'
-    finally:
-        os.remove(path)
+    result = guess_encoding(LF_COMPLETE_CP1252)
+    assert result == 'cp1252'
 
 
-def test_latin_1_fallback():
+def test_guess_latin_1_fallback():
     # Actually, the input here is a very wild latin-1 text.
     # The intention is to verify that there is a fallback
     # that always works.
-    path = tempfile.mkstemp()[-1]
-    try:
-        with open(path, 'wb') as f:
-            f.write(LF_COMPLETE_STRANGE_ENCODING)
-        result = guess_encoding(path)
-        assert result == 'latin_1'
-    finally:
-        os.remove(path)
+    result = guess_encoding(LF_COMPLETE_STRANGE_ENCODING)
+    assert result == 'latin_1'
 
 
 # Test data
@@ -294,6 +325,23 @@ LF_COMPLETE_UTF8_WITH_BOM = bytearray([
     0xef, 0xbb, 0xbf,                                   # BOM
     0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0a,           # 'Hallå\n'
     0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64, 0x0a            # 'Värld\n'
+])
+
+LF_COMPLETE_UTF16_BE_WITH_BOM = bytearray([
+   0xfe, 0xff,
+   0x00, 0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a,
+   0x00, 0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a
+])
+
+LF_COMPLETE_UTF16_LE_WITH_BOM = bytearray([
+   0xff, 0xfe,
+   0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
+   0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
+])
+
+LF_COMPLETE_UTF16_LE_WITHOUT_BOM = bytearray([
+   0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
+   0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
 ])
 
 LF_COMPLETE_UTF8_WITHOUT_BOM = bytearray([
