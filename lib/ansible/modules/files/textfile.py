@@ -277,6 +277,7 @@ RETURN = r'''
 
 '''
 
+# Documenting a module: https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html
 # Python encoding support: https://docs.python.org/2.4/lib/standard-encodings.html
 # Some ideas for improvement on Python 3:
 # https://six.readthedocs.io/
