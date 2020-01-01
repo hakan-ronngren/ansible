@@ -11,6 +11,12 @@ from ansible.modules.files.textfile import guess_encoding
 
 
 # Conversion tests
+#
+# These conventions are used in test names:
+#  * encoding is ascii unless stated
+#  * eof: complete last line
+#  * noeof: incomplete last line
+#  * unless stated, the last line status applies to both input and output
 
 def test_crlf_eof_to_lf():
     module = FakeModule(eol='lf')
@@ -102,7 +108,7 @@ def test_keep_windows_utf8_bom():
         cleanup(module)
 
 
-def test_lf_remains_lf():
+def test_lf_remains_lf_and_changed_is_false():
     module = FakeModule(eol='lf')
     try:
         result, converted_data = exercise(LF_COMPLETE, module)
@@ -112,8 +118,8 @@ def test_lf_remains_lf():
         cleanup(module)
 
 
-def test_empty_file():
-    module = FakeModule(eol='lf')
+def test_empty_file_remains_empty_and_changed_is_false_even_when_end_eol_required():
+    module = FakeModule(eol='lf', end_eol='present')
     try:
         result, converted_data = exercise(bytearray([]), module)
         assert result == dict(changed=False)
@@ -129,7 +135,7 @@ def test_file_not_found():
         process_file(module)
 
 
-def test_as_is_handles_strange_data():
+def test_can_convert_a_file_with_all_byte_values_x20_to_xff():
     module = FakeModule(eol='crlf', encoding='as-is')
     try:
         result, converted_data = exercise(LF_COMPLETE_STRANGE_ENCODING, module)
@@ -164,7 +170,7 @@ def test_utf_8_to_cp1252():
 def test_guessed_utf_16_be_to_cp1252():
     module = FakeModule(eol='lf', encoding='cp1252')
     try:
-        result, converted_data = exercise(LF_COMPLETE_UTF16_BE_WITH_BOM, module)
+        result, converted_data = exercise(LF_COMPLETE_UTF16_BE, module)
         assert result == dict(changed=True)
         assert converted_data == LF_COMPLETE_CP1252
     finally:
@@ -174,19 +180,9 @@ def test_guessed_utf_16_be_to_cp1252():
 def test_guessed_utf_16_le_to_utf_8_keep_bom_when_as_is():
     module = FakeModule(eol='lf', encoding='utf_8')
     try:
-        result, converted_data = exercise(LF_COMPLETE_UTF16_LE_WITH_BOM, module)
+        result, converted_data = exercise(LF_COMPLETE_UTF16_LE, module)
         assert result == dict(changed=True)
         assert converted_data == LF_COMPLETE_UTF8_WITH_BOM
-    finally:
-        cleanup(module)
-
-
-def test_guessed_utf_16_le_to_utf_8_do_not_add_bom_when_as_is():
-    module = FakeModule(eol='lf', encoding='utf_8')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF16_LE_WITHOUT_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF8_WITHOUT_BOM
     finally:
         cleanup(module)
 
@@ -196,17 +192,7 @@ def test_utf_8_to_utf_16_le_keep_bom_when_as_is():
     try:
         result, converted_data = exercise(LF_COMPLETE_UTF8_WITH_BOM, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF16_LE_WITH_BOM
-    finally:
-        cleanup(module)
-
-
-def test_utf_8_to_utf_16_le_do_not_add_bom_when_as_is():
-    module = FakeModule(eol='lf', encoding='utf_16_le')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF16_LE_WITHOUT_BOM
+        assert converted_data == LF_COMPLETE_UTF16_LE
     finally:
         cleanup(module)
 
@@ -269,7 +255,7 @@ def test_guess_utf_8():
 
 
 def test_guess_utf_16_le():
-    result = guess_encoding(LF_COMPLETE_UTF16_LE_WITH_BOM)
+    result = guess_encoding(LF_COMPLETE_UTF16_LE)
     assert result == 'utf_16_le'
 
 
@@ -327,19 +313,14 @@ LF_COMPLETE_UTF8_WITH_BOM = bytearray([
     0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64, 0x0a            # 'Värld\n'
 ])
 
-LF_COMPLETE_UTF16_BE_WITH_BOM = bytearray([
+LF_COMPLETE_UTF16_BE = bytearray([
    0xfe, 0xff,
    0x00, 0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a,
    0x00, 0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a
 ])
 
-LF_COMPLETE_UTF16_LE_WITH_BOM = bytearray([
+LF_COMPLETE_UTF16_LE = bytearray([
    0xff, 0xfe,
-   0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
-   0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
-])
-
-LF_COMPLETE_UTF16_LE_WITHOUT_BOM = bytearray([
    0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
    0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
 ])
