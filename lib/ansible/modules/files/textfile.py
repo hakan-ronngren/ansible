@@ -294,6 +294,15 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
 
+b_crlf = '\r\n' if six.PY2 else b'\r\n'
+b_cr = '\r' if six.PY2 else b'\r'
+b_lf = '\n' if six.PY2 else b'\n'
+b_bom8 = '\xef\xbb\xbf' if six.PY2 else b'\xef\xbb\xbf'
+b_bom16le = '\xff\xfe' if six.PY2 else b'\xff\xfe'
+b_bom16be = '\xfe\xff' if six.PY2 else b'\xfe\xff'
+b_empty = '' if six.PY2 else b''
+
+
 def guess_encoding(b_text):
     """Find a text codec that would decode a given file.
 
@@ -311,6 +320,10 @@ def guess_encoding(b_text):
         else:
             # Odd position => big endian
             return 'utf_16_le'
+    elif b_text.startswith(b_bom16be):
+        return 'utf_16_be'
+    elif b_text.startswith(b_bom16le):
+        return 'utf_16_le'
     else:
         # Iterate over encodings that can fail, in order of decreasing
         # probability of failure. As ascii will reject any byte over
@@ -356,14 +369,6 @@ def process_file(module):
     params = module.params
     temp_path = tempfile.mkstemp()[-1]
     changed = False
-
-    b_crlf = '\r\n' if six.PY2 else b'\r\n'
-    b_cr = '\r' if six.PY2 else b'\r'
-    b_lf = '\n' if six.PY2 else b'\n'
-    b_bom8 = '\xef\xbb\xbf' if six.PY2 else b'\xef\xbb\xbf'
-    b_bom16le = '\xff\xfe' if six.PY2 else b'\xff\xfe'
-    b_bom16be = '\xfe\xff' if six.PY2 else b'\xfe\xff'
-    b_empty = '' if six.PY2 else b''
 
     # Set desired eol byte sequence
     if params['eol'] == 'crlf':

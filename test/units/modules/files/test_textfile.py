@@ -21,9 +21,9 @@ from ansible.modules.files.textfile import guess_encoding
 def test_crlf_eof_to_lf():
     module = FakeModule(eol='lf')
     try:
-        result, converted_data = exercise(CRLF_COMPLETE, module)
+        result, converted_data = exercise(CRLF_COMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE
+        assert converted_data == LF_COMPL
     finally:
         cleanup(module)
 
@@ -31,9 +31,9 @@ def test_crlf_eof_to_lf():
 def test_crlf_noeof_to_lf():
     module = FakeModule(eol='lf')
     try:
-        result, converted_data = exercise(CRLF_INCOMPLETE, module)
+        result, converted_data = exercise(CRLF_INCOMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_INCOMPLETE
+        assert converted_data == LF_INCOMPL
     finally:
         cleanup(module)
 
@@ -41,9 +41,9 @@ def test_crlf_noeof_to_lf():
 def test_crlf_noeof_to_lf_eof():
     module = FakeModule(eol='lf', end_eol='present')
     try:
-        result, converted_data = exercise(CRLF_INCOMPLETE, module)
+        result, converted_data = exercise(CRLF_INCOMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE
+        assert converted_data == LF_COMPL
     finally:
         cleanup(module)
 
@@ -51,9 +51,9 @@ def test_crlf_noeof_to_lf_eof():
 def test_lf_eof_to_crlf():
     module = FakeModule(eol='crlf')
     try:
-        result, converted_data = exercise(LF_COMPLETE, module)
+        result, converted_data = exercise(LF_COMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == CRLF_COMPLETE
+        assert converted_data == CRLF_COMPL
     finally:
         cleanup(module)
 
@@ -61,9 +61,9 @@ def test_lf_eof_to_crlf():
 def test_lf_eof_to_crlf_noeof():
     module = FakeModule(eol='crlf', end_eol='absent')
     try:
-        result, converted_data = exercise(LF_COMPLETE, module)
+        result, converted_data = exercise(LF_COMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == CRLF_INCOMPLETE
+        assert converted_data == CRLF_INCOMPL
     finally:
         cleanup(module)
 
@@ -71,9 +71,9 @@ def test_lf_eof_to_crlf_noeof():
 def test_lf_noeof_to_lf_eof():
     module = FakeModule(eol='lf', end_eol='present')
     try:
-        result, converted_data = exercise(LF_INCOMPLETE, module)
+        result, converted_data = exercise(LF_INCOMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE
+        assert converted_data == LF_COMPL
     finally:
         cleanup(module)
 
@@ -81,9 +81,9 @@ def test_lf_noeof_to_lf_eof():
 def test_lf_to_cr():
     module = FakeModule(eol='cr')
     try:
-        result, converted_data = exercise(LF_COMPLETE, module)
+        result, converted_data = exercise(LF_COMPL, module)
         assert result == dict(changed=True)
-        assert converted_data == CR_COMPLETE
+        assert converted_data == CR_COMPL
     finally:
         cleanup(module)
 
@@ -91,9 +91,9 @@ def test_lf_to_cr():
 def test_remove_windows_utf8_bom():
     module = FakeModule(eol='lf', end_eol='present', bom='absent')
     try:
-        result, converted_data = exercise(CRLF_INCOMPLETE_UTF8_WITH_BOM, module)
+        result, converted_data = exercise(CRLF_INCOMPL_UTF8_SWE_BOM, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF8_WITHOUT_BOM
+        assert converted_data == LF_COMPL_UTF8_SWE_NO_BOM
     finally:
         cleanup(module)
 
@@ -101,9 +101,9 @@ def test_remove_windows_utf8_bom():
 def test_keep_windows_utf8_bom():
     module = FakeModule(eol='lf', end_eol='present')
     try:
-        result, converted_data = exercise(CRLF_INCOMPLETE_UTF8_WITH_BOM, module)
+        result, converted_data = exercise(CRLF_INCOMPL_UTF8_SWE_BOM, module)
         assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF8_WITH_BOM
+        assert converted_data == LF_COMPL_UTF8_SWE_BOM
     finally:
         cleanup(module)
 
@@ -111,9 +111,116 @@ def test_keep_windows_utf8_bom():
 def test_lf_remains_lf_and_changed_is_false():
     module = FakeModule(eol='lf')
     try:
-        result, converted_data = exercise(LF_COMPLETE, module)
+        result, converted_data = exercise(LF_COMPL, module)
         assert result == dict(changed=False)
-        assert converted_data == LF_COMPLETE
+        assert converted_data == LF_COMPL
+    finally:
+        cleanup(module)
+
+
+def test_can_convert_eol_in_a_file_with_unrecognizable_encoding():
+    module = FakeModule(eol='crlf', encoding='as-is')
+    try:
+        result, converted_data = exercise(LF_COMPL_STRANGE_ENCODING, module)
+        assert result == dict(changed=True)
+        assert converted_data == CRLF_COMPL_STRANGE_ENCODING
+    finally:
+        cleanup(module)
+
+
+def test_guessed_to_cp1252():
+    module = FakeModule(eol='lf', encoding='cp1252')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF8_SWE_NO_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_CP1252_SWE
+    finally:
+        cleanup(module)
+
+
+def test_utf_8_to_cp1252():
+    module = FakeModule(eol='lf',
+                        original_encoding='utf_8',
+                        encoding='cp1252')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF8_SWE_NO_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_CP1252_SWE
+    finally:
+        cleanup(module)
+
+
+def test_guessed_utf_16_be_to_cp1252():
+    module = FakeModule(eol='lf', encoding='cp1252')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF16BE_SWE_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_CP1252_SWE
+    finally:
+        cleanup(module)
+
+
+def test_guessed_utf_16_le_to_utf_8_keep_bom_when_as_is():
+    module = FakeModule(eol='lf', encoding='utf_8')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF16LE_SWE_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_UTF8_SWE_BOM
+    finally:
+        cleanup(module)
+
+
+def test_utf_8_to_utf_16_le_keep_bom_when_as_is():
+    module = FakeModule(eol='lf', encoding='utf_16_le')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF8_SWE_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_UTF16LE_SWE_BOM
+    finally:
+        cleanup(module)
+
+
+def test_utf_8_to_ascii_replaced():
+    module = FakeModule(eol='lf',
+                        original_encoding='utf_8',
+                        encoding='ascii',
+                        encoding_errors='replace')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF8_SWE_NO_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_ASCII_SWE_REPLACED
+    finally:
+        cleanup(module)
+
+
+def test_utf_8_to_ascii_invalid_characters_ignored():
+    module = FakeModule(eol='lf',
+                        original_encoding='utf_8',
+                        encoding='ascii',
+                        encoding_errors='ignore')
+    try:
+        result, converted_data = exercise(LF_COMPL_UTF8_SWE_NO_BOM, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_ASCII_SWE_DROPPED
+    finally:
+        cleanup(module)
+
+
+def test_cp1252_to_ascii_strict_invalid_character_cause_failure():
+    module = FakeModule(eol='lf', encoding='ascii')
+    with pytest.raises(UnicodeEncodeError):
+        try:
+            exercise(LF_COMPL_CP1252_SWE, module)
+        finally:
+            cleanup(module)
+
+
+def test_cp1252_to_utf_8():
+    module = FakeModule(eol='lf', original_encoding='cp1252', encoding='utf_8')
+    try:
+        result, converted_data = exercise(LF_COMPL_CP1252_SWE, module)
+        assert result == dict(changed=True)
+        assert converted_data == LF_COMPL_UTF8_SWE_NO_BOM
     finally:
         cleanup(module)
 
@@ -135,217 +242,172 @@ def test_file_not_found():
         process_file(module)
 
 
-def test_can_convert_a_file_with_all_byte_values_x20_to_xff():
-    module = FakeModule(eol='crlf', encoding='as-is')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_STRANGE_ENCODING, module)
-        assert result == dict(changed=True)
-        assert converted_data == CRLF_COMPLETE_STRANGE_ENCODING
-    finally:
-        cleanup(module)
-
-
-def test_guessed_to_cp1252():
-    module = FakeModule(eol='lf', encoding='cp1252')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_CP1252
-    finally:
-        cleanup(module)
-
-
-def test_utf_8_to_cp1252():
-    module = FakeModule(eol='lf',
-                        original_encoding='utf_8',
-                        encoding='cp1252')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_CP1252
-    finally:
-        cleanup(module)
-
-
-def test_guessed_utf_16_be_to_cp1252():
-    module = FakeModule(eol='lf', encoding='cp1252')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF16_BE, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_CP1252
-    finally:
-        cleanup(module)
-
-
-def test_guessed_utf_16_le_to_utf_8_keep_bom_when_as_is():
-    module = FakeModule(eol='lf', encoding='utf_8')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF16_LE, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF8_WITH_BOM
-    finally:
-        cleanup(module)
-
-
-def test_utf_8_to_utf_16_le_keep_bom_when_as_is():
-    module = FakeModule(eol='lf', encoding='utf_16_le')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF8_WITH_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF16_LE
-    finally:
-        cleanup(module)
-
-
-def test_utf_8_to_ascii_replaced():
-    module = FakeModule(eol='lf',
-                        original_encoding='utf_8',
-                        encoding='ascii',
-                        encoding_errors='replace')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_ASCII_REPLACED
-    finally:
-        cleanup(module)
-
-
-def test_utf_8_to_ascii_ignored():
-    module = FakeModule(eol='lf',
-                        original_encoding='utf_8',
-                        encoding='ascii',
-                        encoding_errors='ignore')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_UTF8_WITHOUT_BOM, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_ASCII_IGNORED
-    finally:
-        cleanup(module)
-
-
-def test_cp1252_to_ascii_strict_fails():
-    module = FakeModule(eol='lf', encoding='ascii')
-    with pytest.raises(UnicodeEncodeError):
-        try:
-            exercise(LF_COMPLETE_CP1252, module)
-        finally:
-            cleanup(module)
-
-
-def test_cp1252_to_utf_8():
-    module = FakeModule(eol='lf', original_encoding='cp1252', encoding='utf_8')
-    try:
-        result, converted_data = exercise(LF_COMPLETE_CP1252, module)
-        assert result == dict(changed=True)
-        assert converted_data == LF_COMPLETE_UTF8_WITHOUT_BOM
-    finally:
-        cleanup(module)
-
-
 # Tests for the ability to guess encoding
 
 def test_guess_ascii():
-    result = guess_encoding(LF_COMPLETE)
+    result = guess_encoding(LF_COMPL)
     assert result == 'ascii'
 
 
-def test_guess_utf_8():
-    result = guess_encoding(LF_COMPLETE_UTF8_WITHOUT_BOM)
+def test_guess_utf_8_with_characters_as_only_clue():
+    result = guess_encoding(LF_COMPL_UTF8_SWE_NO_BOM)
     assert result == 'utf_8'
 
 
+def test_guess_utf_8_with_bom_as_only_clue():
+    result = guess_encoding(LF_COMPL_UTF8_BOM)
+    assert result == 'utf_8'
+
+
+def test_guess_utf_16_le_with_characters_as_only_clue():
+    result = guess_encoding(LF_COMPL_UTF16LE_SWE_NO_BOM)
+    assert result == 'utf_16_le'
+
+
+def test_guess_utf_16_le_with_bom_as_only_clue():
+    result = guess_encoding(INCOMPL_UTF16LE_JAP_BOM)
+    assert result == 'utf_16_le'
+
+
 def test_guess_utf_16_le():
-    result = guess_encoding(LF_COMPLETE_UTF16_LE)
+    result = guess_encoding(LF_COMPL_UTF16LE_SWE_BOM)
     assert result == 'utf_16_le'
 
 
 def test_guess_cp_1252():
-    result = guess_encoding(LF_COMPLETE_CP1252)
+    result = guess_encoding(LF_COMPL_CP1252_SWE)
     assert result == 'cp1252'
 
 
-def test_guess_latin_1_fallback():
+def test_anything_goes_as_latin_1():
     # Actually, the input here is a very wild latin-1 text.
     # The intention is to verify that there is a fallback
     # that always works.
-    result = guess_encoding(LF_COMPLETE_STRANGE_ENCODING)
+    result = guess_encoding(LF_COMPL_STRANGE_ENCODING)
     assert result == 'latin_1'
 
 
-# Test data
+# Test data with ascii, various line endings and complete/incomplete last line
+# Two lines, containing the strings "Hello" and "World"
 
-CRLF_COMPLETE = bytearray([
-    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0d, 0x0a,           # 'Hello\r\n'
-    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0d, 0x0a            # 'World\r\n'
+CRLF_COMPL = bytearray([
+    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0d, 0x0a,
+    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0d, 0x0a
 ])
 
-CRLF_INCOMPLETE = bytearray([
-    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0d, 0x0a,           # 'Hello\r\n'
-    0x57, 0x6f, 0x72, 0x6c, 0x64                        # 'World'
+CRLF_INCOMPL = bytearray([
+    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0d, 0x0a,
+    0x57, 0x6f, 0x72, 0x6c, 0x64
 ])
 
-LF_COMPLETE = bytearray([
-    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0a,                 # 'Hello\n'
-    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0a,                 # 'World\n'
+LF_COMPL = bytearray([
+    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0a,
+    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0a,
 ])
 
-LF_INCOMPLETE = bytearray([
-    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0a,                 # 'Hello\n'
-    0x57, 0x6f, 0x72, 0x6c, 0x64,                       # 'World'
+LF_INCOMPL = bytearray([
+    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0a,
+    0x57, 0x6f, 0x72, 0x6c, 0x64,
 ])
 
-CR_COMPLETE = bytearray([
-    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0d,                 # 'Hello\r'
-    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0d,                 # 'World\r'
+CR_COMPL = bytearray([
+    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0d,
+    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0d,
 ])
 
-# Some Windows utf-8 text files start with a special byte sequence
-# https://docs.microsoft.com/sv-se/globalization/encoding/byte-order-mark
-CRLF_INCOMPLETE_UTF8_WITH_BOM = bytearray([
-    0xef, 0xbb, 0xbf,                                   # BOM
-    0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0d, 0x0a,     # 'Hallå\r\n'
-    0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64                  # 'Värld'
+
+LF_COMPL_UTF8_BOM = bytearray([
+    # Prepending the ascii data with a Windows-style BOM makes it UTF-8
+    0xef, 0xbb, 0xbf,
+    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0a,
+    0x57, 0x6f, 0x72, 0x6c, 0x64, 0x0a,
 ])
 
-LF_COMPLETE_UTF8_WITH_BOM = bytearray([
-    0xef, 0xbb, 0xbf,                                   # BOM
-    0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0a,           # 'Hallå\n'
-    0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64, 0x0a            # 'Värld\n'
+# Test data variants with some Swedish characters
+# Two lines, containing the strings "Hallå" and "Värld"
+
+CRLF_INCOMPL_UTF8_SWE_BOM = bytearray([
+    0xef, 0xbb, 0xbf,
+    0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0d, 0x0a,
+    0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64
 ])
 
-LF_COMPLETE_UTF16_BE = bytearray([
-   0xfe, 0xff,
-   0x00, 0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a,
-   0x00, 0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a
+LF_COMPL_UTF8_SWE_BOM = bytearray([
+    0xef, 0xbb, 0xbf,
+    0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0a,
+    0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64, 0x0a
 ])
 
-LF_COMPLETE_UTF16_LE = bytearray([
-   0xff, 0xfe,
-   0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
-   0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
+LF_COMPL_UTF16BE_SWE_BOM = bytearray([
+    0xfe, 0xff,
+    0x00, 0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a,
+    0x00, 0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a
 ])
 
-LF_COMPLETE_UTF8_WITHOUT_BOM = bytearray([
-    0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0a,           # 'Hallå\n'
-    0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64, 0x0a            # 'Värld\n'
+LF_COMPL_UTF16LE_SWE_BOM = bytearray([
+    0xff, 0xfe,
+    0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
+    0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
 ])
 
-LF_COMPLETE_CP1252 = bytearray([
-    0x48, 0x61, 0x6c, 0x6c, 0xe5, 0x0a,                 # 'Hallå\n'
-    0x56, 0xe4, 0x72, 0x6c, 0x64, 0x0a                  # 'Värld\n'
+LF_COMPL_UTF16LE_SWE_NO_BOM = bytearray([
+    0x48, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x6c, 0x00, 0xe5, 0x00, 0x0a, 0x00,
+    0x56, 0x00, 0xe4, 0x00, 0x72, 0x00, 0x6c, 0x00, 0x64, 0x00, 0x0a, 0x00
 ])
 
-LF_COMPLETE_ASCII_REPLACED = bytearray([
-    0x48, 0x61, 0x6c, 0x6c, 0x3f, 0x0a,                 # 'Hall?\n'
-    0x56, 0x3f, 0x72, 0x6c, 0x64, 0x0a                  # 'V?rld\n'
+LF_COMPL_UTF8_SWE_NO_BOM = bytearray([
+    0x48, 0x61, 0x6c, 0x6c, 0xc3, 0xa5, 0x0a,
+    0x56, 0xc3, 0xa4, 0x72, 0x6c, 0x64, 0x0a
 ])
 
-LF_COMPLETE_ASCII_IGNORED = bytearray([
-    0x48, 0x61, 0x6c, 0x6c, 0x0a,                       # 'Hall\n'
-    0x56, 0x72, 0x6c, 0x64, 0x0a                        # 'Vrld\n'
+LF_COMPL_CP1252_SWE = bytearray([
+    0x48, 0x61, 0x6c, 0x6c, 0xe5, 0x0a,
+    0x56, 0xe4, 0x72, 0x6c, 0x64, 0x0a
 ])
 
-CRLF_COMPLETE_STRANGE_ENCODING = bytearray([
+LF_COMPL_ASCII_SWE_REPLACED = bytearray([
+    # In this variant, "?" goes in place of non-ascii letters
+    0x48, 0x61, 0x6c, 0x6c, 0x3f, 0x0a,
+    0x56, 0x3f, 0x72, 0x6c, 0x64, 0x0a
+])
+
+LF_COMPL_ASCII_SWE_DROPPED = bytearray([
+    # In this variant, non-ascii letters are simply lost
+    0x48, 0x61, 0x6c, 0x6c, 0x0a,
+    0x56, 0x72, 0x6c, 0x64, 0x0a
+])
+
+# Test data with Japanese and no line endings, because with UTF-16 these would
+# contain 0x00 bytes that give away the byte order too easily.
+# One incomplete line, containing the string "こんにちは" (kon'nichiwa)
+
+INCOMPL_UTF16LE_JAP_BOM = bytearray([
+    0xff, 0xfe,
+    0x53, 0x30,
+    0x93, 0x30,
+    0x6b, 0x30,
+    0x61, 0x30,
+    0x6f, 0x30
+])
+
+INCOMPL_UTF8_JAP_BOM = bytearray([
+    0xef, 0xbb, 0xbf,
+    0xe3, 0x81, 0x93,
+    0xe3, 0x82, 0x93,
+    0xe3, 0x81, 0xab,
+    0xe3, 0x81, 0xa1,
+    0xe3, 0x81, 0xaf
+])
+
+# Test data to verify the ability to transparently deal with essentially any
+# byte values (0x0a and 0x0d reserved for line endings, 0x00 avoided as it
+# would suggest UTF-16)
+
+CRLF_COMPL_STRANGE_ENCODING = bytearray([
+    0xff, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0d, 0x0a,
+    0x08, 0x09, 0xff, 0x0b, 0x0c, 0xff, 0x0e, 0x0f, 0x0d, 0x0a,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x0d, 0x0a,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x0d, 0x0a,
     0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x0d, 0x0a,
     0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x0d, 0x0a,
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x0d, 0x0a,
@@ -376,7 +438,11 @@ CRLF_COMPLETE_STRANGE_ENCODING = bytearray([
     0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, 0x0d, 0x0a
 ])
 
-LF_COMPLETE_STRANGE_ENCODING = bytearray([
+LF_COMPL_STRANGE_ENCODING = bytearray([
+    0xff, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0a,
+    0x08, 0x09, 0xff, 0x0b, 0x0c, 0xff, 0x0e, 0x0f, 0x0a,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x0a,
+    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x0a,
     0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x0a,
     0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x0a,
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x0a,
