@@ -410,13 +410,15 @@ def process_file(module):
     s_out = s_out.replace('\r', '\n')
     s_out = s_out.replace('\n', eol)
 
-    # Obey end eol requirement
-    if (params['end_eol'] == 'present'
-            and not s_out.endswith(eol)):
-        s_out += eol
-    elif (params['end_eol'] == 'absent'
+    # Obey end eol requirement, but never append an eol if the file is empty,
+    # because that would increase the number of lines from 0 to 1.
+    if (params['end_eol'] == 'absent'
             and s_out.endswith(eol)):
         s_out = s_out[:-len(eol)]
+    elif (params['end_eol'] == 'present'
+            and len(s_out) > 0
+            and not s_out.endswith(eol)):
+        s_out += eol
 
     # Encode with the required encoding
     errors = params['encoding_errors']
