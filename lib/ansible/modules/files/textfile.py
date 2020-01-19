@@ -311,7 +311,11 @@ def guess_encoding(b_text):
 
     b_zero = '\x00' if six.PY2 else b'\x00'
     zero_ix = b_text.find(b_zero)
-    if zero_ix >= 0:
+    if b_text.startswith(b_bom16be):
+        return 'utf_16_be'
+    elif b_text.startswith(b_bom16le):
+        return 'utf_16_le'
+    elif zero_ix >= 0:
         # The presence of a zero byte indicates that we have UTF-16.
         # (It could be UTF-32 as well but we do not handle that.)
         if zero_ix % 2 == 0:
@@ -320,10 +324,6 @@ def guess_encoding(b_text):
         else:
             # Odd position => big endian
             return 'utf_16_le'
-    elif b_text.startswith(b_bom16be):
-        return 'utf_16_be'
-    elif b_text.startswith(b_bom16le):
-        return 'utf_16_le'
     else:
         # Iterate over encodings that can fail, in order of decreasing
         # probability of failure. As ascii will reject any byte over
